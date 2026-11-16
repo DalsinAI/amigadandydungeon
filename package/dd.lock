@@ -1,0 +1,10 @@
+# The upstream Dandy Dungeon the port builds: jackpal/Dandy-Dungeon at this
+# commit (Jack Palevich's game, its C++ version: Dandy.cpp, Dandy.bmp and
+# the 26 levels; Apache-2.0), fetched by package/prepare-source.sh and
+# never kept in this repository.
+DD_GIT=https://github.com/jackpal/Dandy-Dungeon
+DD_COMMIT=7c2a09e76f00b459ace67ec730c71cae6285dd4b
+DD_VERSION=1.0
+PORT_VERSION=1.0-gfos1
+# DalsinAI/acgame: acgame.library and its stubs, built with the game
+ACGAME_REF=05f72b98d05044b149be315400bb6e196b42799d
