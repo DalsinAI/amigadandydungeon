@@ -1,0 +1,15 @@
+{
+  "name": "Dandy Dungeon",
+  "version": "1.0-gfos1",
+  "drawer": "DandyDungeon",
+  "program": "DandyDungeon",
+  "cpu": "68040",
+  "fpu": false,
+  "space": 200000,
+  "modules": [],
+  "libraries": ["acgame.library"],
+  "keep": [],
+  "parent": "Work:Games",
+  "badge": "icons/art/dandydungeon.png",
+  "script": "Install-DandyDungeon"
+}

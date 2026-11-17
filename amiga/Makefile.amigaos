@@ -1,0 +1,79 @@
+# Dandy Dungeon for GFOS (AmigaOS 3.2 with GFOpenUp), 68040/68060: the
+# Atari 800 dungeon game's C++ version on ACGame's 8-bit screen
+# (acgame.library, opened at run time through the libacgame.a stubs), no
+# SDL and no GFOpenGPU, built soft float.
+#
+#   make -f amiga/Makefile.amigaos -j4 DD=/path/to/prepared \
+#        ACGAME=/path/to/acgame ACGAMELIB=/path/to/acgame-out [STOVE=...]
+#
+# DD is what package/prepare-source.sh makes: src/dandy.cpp (upstream's
+# Dandy.cpp, patched: its Direct3D view and Win32 main are ours) and data/
+# (Dandy.bmp and the levels). ACGAME is DalsinAI/acgame (its headers),
+# ACGAMELIB its build (libacgame.a, the stubs that open acgame.library, and
+# acgame.library itself).
+#
+# Output: build/amigaos/DandyDungeon/ (the drawer: the program, its data,
+# Libs/acgame.library, ReadMe, the licence, the icons) and
+# build/amigaos/DandyDungeon.info and Install-DandyDungeon beside it.
+
+DD        ?= ../dd-prepared
+ACGAME    ?= ../acgame
+ACGAMELIB ?= $(ACGAME)/build-amiga
+STOVE     ?= $(HOME)/AmiCradle/stoves/os32-gcc16-open6
+PREFIX    ?= $(STOVE)/prefix
+CC        = $(PREFIX)/bin/m68k-amigaos-gcc
+CXX       = $(PREFIX)/bin/m68k-amigaos-g++
+CPU       ?= -m68040 -msoft-float
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile.
+OPT       ?= -O2 -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+INC       = -Iamiga -I$(ACGAME)/include
+# Upstream is 2000s Visual C++: its warnings are upstream's (-w); no
+# exceptions or RTTI (it uses neither), so no C++ runtime beyond libgcc.
+CXXFLAGS  = -noixemul $(OPT) $(CPU) -std=gnu++11 -w -fno-exceptions -fno-rtti $(INC)
+CFLAGS    = -noixemul $(OPT) $(CPU) -std=gnu99 -Wall -Werror $(INC)
+LDFLAGS   = -noixemul $(CPU) -fno-exceptions -fno-rtti
+LIBS      = $(ACGAMELIB)/libacgame.a -lm
+
+BUILD     = build/amigaos
+OBJ       = $(BUILD)/obj
+DRAWER    = $(BUILD)/DandyDungeon
+
+OURS      = dd_main dd_keys dd_draw dd_acgame
+OBJS      = $(OBJ)/up/dandy.o $(OURS:%=$(OBJ)/%.o)
+HDRS      = $(wildcard amiga/*.h)
+
+all: program package
+
+program: $(OBJ)/DandyDungeon
+
+$(OBJ)/up/dandy.o: $(DD)/src/dandy.cpp $(HDRS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(OBJ)/%.o: amiga/%.c $(HDRS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJ)/DandyDungeon: $(OBJS)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+package: program AMIGA_PORT.md
+	rm -rf $(DRAWER)
+	mkdir -p $(DRAWER)/Libs
+	cp $(OBJ)/DandyDungeon $(DRAWER)/DandyDungeon
+	cp amiga/icons/DandyDungeon.info $(DRAWER)/DandyDungeon.info
+	cp -R $(DD)/data/. $(DRAWER)/
+	cp $(ACGAMELIB)/acgame.library $(DRAWER)/Libs/
+	cp AMIGA_PORT.md $(DRAWER)/ReadMe
+	cp amiga/icons/ReadMe.info $(DRAWER)/ReadMe.info
+	cp $(DD)/LICENSE $(DRAWER)/LICENSE.txt
+	cp amiga/icons/ReadMe.info $(DRAWER)/LICENSE.txt.info
+	cp amiga/icons/DandyDungeon-drawer.info $(BUILD)/DandyDungeon.info
+	cp amiga/Install-DandyDungeon amiga/Install-DandyDungeon.info $(BUILD)/
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all program package clean
+.SECONDARY:

@@ -1,0 +1,388 @@
+diff --git a/dandy.cpp b/dandy.cpp
+index 4b301cf..0a34147 100644
+--- a/dandy.cpp
++++ b/dandy.cpp
+@@ -1,30 +1,4 @@
+-#include <Windows.h>
+-#include <mmsystem.h>
+-#include <d3dx9.h>
+-#include <stdio.h>
+-
+-//-----------------------------------------------------------------------------
+-// Global variables
+-//-----------------------------------------------------------------------------
+-LPDIRECT3D9             g_pD3D       = NULL; // Used to create the D3DDevice
+-LPDIRECT3DDEVICE9       g_pd3dDevice = NULL; // Our rendering device
+-LPDIRECT3DVERTEXBUFFER9 g_pVB        = NULL; // Buffer to hold vertices
+-LPDIRECT3DTEXTURE9      g_pTexture   = NULL; // Our texture
+-
+-// A structure for our custom vertex type. We added texture coordinates
+-struct CUSTOMVERTEX
+-{
+-    float x;
+-    float y;
+-    float z;
+-    float rhw;
+-	float    tu;
+-	float    tv;
+-};
+-
+-// Our custom FVF, which describes our custom vertex structure
+-#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZRHW | D3DFVF_TEX1)
+-
++#include "dd_compat.h"
+ 
+ // The game goes here
+ 
+@@ -913,154 +887,7 @@ public:
+ 
+ };
+ 
+-const DWORD kNumVerts = Map::NumCells * 6;
+-
+-class View
+-{
+-public:
+-	View()
+-	{
+-	}
+-
+-	void Render(World& world)
+-	{
+-		// Fill the vertex buffer. We are setting the tu and tv texture
+-		// coordinates, which range from 0.0 to 1.0
+-		CUSTOMVERTEX* pVertices;
+-		if( FAILED( g_pVB->Lock( 0, 0, (void**)&pVertices, 0 ) ) )
+-			return;
+-
+-		float x;
+-		float y;
+-		world.GetCOG(x, y);
+-
+-		DWORD numTris = DrawToTexture(world.map, pVertices, kNumVerts, x, y);
+-		g_pVB->Unlock();
+-
+-		// Setup our texture. Using textures introduces the texture stage states,
+-		// which govern how textures get blended together (in the case of multiple
+-		// textures) and lighting information. In this case, we are modulating
+-		// (blending) our texture with the diffuse color of the vertices.
+-		static bool firstTime = true;
+-		if(firstTime)
+-		{
+-			firstTime = false;
+-			g_pd3dDevice->SetTexture( 0, g_pTexture );
+-			g_pd3dDevice->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
+-			g_pd3dDevice->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
+-			g_pd3dDevice->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
+-			g_pd3dDevice->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+-		}
+-
+-		// Render the vertex buffer contents
+-		g_pd3dDevice->SetStreamSource( 0, g_pVB, 0, sizeof(CUSTOMVERTEX) );
+-		g_pd3dDevice->SetFVF( D3DFVF_CUSTOMVERTEX );
+-		g_pd3dDevice->DrawPrimitive( D3DPT_TRIANGLELIST, 0, numTris );
+-	}
+-
+-	DWORD DrawToTexture(Map& map, CUSTOMVERTEX* pV, DWORD numV, float cogX, float cogY)
+-	{
+-		const float CellSize = 16.0f;
+-		const float uTexelSize = 1.0f / 256.0f;
+-		const float vTexelSize = 1.0f / 32.0f;
+-		const DWORD uChars = 16;
+-		const DWORD vChars = 2;
+-		const float uScale = 1.0f / uChars;
+-		const float vScale = 1.0f / vChars;
+-		const float uBase = 0.0f;
+-		const float vBase = 1.0f;
+-
+-		CUSTOMVERTEX* pTri = pV;
+-
+-		DWORD startX;
+-		DWORD endX;
+-		DWORD startY;
+-		DWORD endY;
+-		map.GetActive(cogX, cogY, startX, startY, endX, endY);
+-
+-		const float xBase = -cogX * 16.f - 0.5f;
+-		const float yBase = -cogY * 16.f - 0.5f;
+-
+-		DWORD dwNumTris = 0;
+-		for(DWORD x = startX; x < endX; x++)
+-		{
+-			for(DWORD y = startY; y < endY; y ++)
+-			{
+-				BYTE b = map.Get(x, y);
+-				float uLow = (b % uChars) * uScale;
+-				float uHigh = uLow + uScale;
+-				float vLow = (b / uChars) * vScale;
+-				float vHigh = vLow + vScale;
+-
+-				float xLow = xBase + x * CellSize;
+-				float xHigh = xLow + CellSize;
+-				float yLow = yBase + y * CellSize;
+-				float yHigh = yLow + CellSize;
+-
+-				// Set the two triangles
+-
+-				// First triangle
+-				pTri->x = xLow;
+-				pTri->y = yLow;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uLow;
+-				pTri->tv = vLow;
+-
+-				pTri++;
+-
+-				pTri->x = xHigh;
+-				pTri->y = yLow;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uHigh;
+-				pTri->tv = vLow;
+-
+-				pTri++;
+-
+-				pTri->x = xLow;
+-				pTri->y = yHigh;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uLow;
+-				pTri->tv = vHigh;
+-
+-				// Second triangle
+-				pTri++;
+-
+-				pTri->x = xLow;
+-				pTri->y = yHigh;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uLow;
+-				pTri->tv = vHigh;
+-
+-				pTri++;
+-
+-				pTri->x = xHigh;
+-				pTri->y = yLow;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uHigh;
+-				pTri->tv = vLow;
+-
+-				pTri++;
+-
+-				pTri->x = xHigh;
+-				pTri->y = yHigh;
+-				pTri->z = 0.f;
+-				pTri->rhw = 1.0f;
+-				pTri->tu = uHigh;
+-				pTri->tv = vHigh;
+-
+-				pTri++;
+-
+-				dwNumTris += 2;
+-			}
+-		}
+-		return dwNumTris;
+-	}
+-};
++#include "dd_view.h"
+ 
+ class Game
+ {
+@@ -1215,193 +1042,4 @@ public:
+ 
+ Game gGame;
+ 
+-
+-
+-//-----------------------------------------------------------------------------
+-// Name: InitD3D()
+-// Desc: Initializes Direct3D
+-//-----------------------------------------------------------------------------
+-HRESULT InitD3D( HWND hWnd )
+-{
+-    // Create the D3D object.
+-    if( NULL == ( g_pD3D = Direct3DCreate9( D3D_SDK_VERSION ) ) )
+-        return E_FAIL;
+-
+-    // Set up the structure used to create the D3DDevice. Since we are now
+-    // using more complex geometry, we will create a device with a zbuffer.
+-    D3DPRESENT_PARAMETERS d3dpp;
+-    ZeroMemory( &d3dpp, sizeof(d3dpp) );
+-    d3dpp.Windowed = TRUE;
+-    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+-    d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+-    d3dpp.EnableAutoDepthStencil = TRUE;
+-    d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
+-
+-    // Create the D3DDevice
+-    if( FAILED( g_pD3D->CreateDevice( D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd,
+-                                      D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+-                                      &d3dpp, &g_pd3dDevice ) ) )
+-    {
+-        return E_FAIL;
+-    }
+-
+-    // Turn off culling
+-    g_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+-
+-    // Turn off D3D lighting
+-    g_pd3dDevice->SetRenderState( D3DRS_LIGHTING, FALSE );
+-
+-    // Turn on the zbuffer
+-    g_pd3dDevice->SetRenderState( D3DRS_ZENABLE, TRUE );
+-
+-    return S_OK;
+-}
+-
+-//-----------------------------------------------------------------------------
+-// Name: InitGeometry()
+-// Desc: Create the textures and vertex buffers
+-//-----------------------------------------------------------------------------
+-HRESULT InitGeometry()
+-{
+-    // Use D3DX to create a texture from a file based image
+-    if( FAILED( D3DXCreateTextureFromFile( g_pd3dDevice, "Dandy.bmp", &g_pTexture ) ) )
+-    {
+-        // If texture is not in current folder, try parent folder
+-        if( FAILED( D3DXCreateTextureFromFile( g_pd3dDevice, "..\\Dandy.bmp", &g_pTexture ) ) )
+-        {
+-            MessageBox(NULL, "Could not find Dandy.bmp", "Dandy.exe", MB_OK);
+-            return E_FAIL;
+-        }
+-    }
+-
+-    // Create the vertex buffer.
+-    if( FAILED( g_pd3dDevice->CreateVertexBuffer( kNumVerts*sizeof(CUSTOMVERTEX),
+-                                                  D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX,
+-                                                  D3DPOOL_DEFAULT, &g_pVB, NULL ) ) )
+-    {
+-        return E_FAIL;
+-    }
+-
+-	return S_OK;
+-}
+-
+-
+-//-----------------------------------------------------------------------------
+-// Name: Cleanup()
+-// Desc: Releases all previously initialized objects
+-//-----------------------------------------------------------------------------
+-VOID Cleanup()
+-{
+-    if( g_pTexture != NULL )
+-        g_pTexture->Release();
+-
+-    if( g_pVB != NULL )
+-        g_pVB->Release();
+-
+-    if( g_pd3dDevice != NULL )
+-        g_pd3dDevice->Release();
+-
+-    if( g_pD3D != NULL )
+-        g_pD3D->Release();
+-}
+-
+-
+-//-----------------------------------------------------------------------------
+-// Name: Render()
+-// Desc: Draws the scene
+-//-----------------------------------------------------------------------------
+-VOID Render()
+-{
+-    // Clear the backbuffer and the zbuffer
+-    g_pd3dDevice->Clear( 0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,
+-                         D3DCOLOR_XRGB(0,0,255), 1.0f, 0 );
+-
+-    // Begin the scene
+-    if( SUCCEEDED( g_pd3dDevice->BeginScene() ) )
+-    {
+-		gGame.Render();
+-        // End the scene
+-        g_pd3dDevice->EndScene();
+-    }
+-
+-    // Present the backbuffer contents to the display
+-    g_pd3dDevice->Present( NULL, NULL, NULL, NULL );
+-}
+-
+-
+-
+-
+-//-----------------------------------------------------------------------------
+-// Name: MsgProc()
+-// Desc: The window's message handler
+-//-----------------------------------------------------------------------------
+-LRESULT WINAPI MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+-{
+-    switch( msg )
+-    {
+-	case WM_KEYDOWN:
+-		gGame.HandleEvent(true, (BYTE) wParam);
+-		return 0;
+-	case WM_KEYUP:
+-		gGame.HandleEvent(false, (BYTE) wParam);
+-		return 0;
+-    case WM_DESTROY:
+-        Cleanup();
+-        PostQuitMessage( 0 );
+-        return 0;
+-    }
+-
+-    return DefWindowProc( hWnd, msg, wParam, lParam );
+-}
+-
+-
+-//-----------------------------------------------------------------------------
+-// Name: WinMain()
+-// Desc: The application's entry point
+-//-----------------------------------------------------------------------------
+-INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
+-{
+-    // Register the window class
+-    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, MsgProc, 0L, 0L,
+-                      GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
+-                      "Dandy", NULL };
+-    RegisterClassEx( &wc );
+-
+-    // Create the application's window
+-    HWND hWnd = CreateWindow( "Dandy", "Dandy Dungeon",
+-		WS_OVERLAPPEDWINDOW, 100, 100, 16*20 + 6, 16*10 + 34,
+-                              GetDesktopWindow(), NULL, wc.hInstance, NULL );
+-
+-    // Initialize Direct3D
+-    if( SUCCEEDED( InitD3D( hWnd ) ) )
+-    {
+-		gGame.Start();
+-        // Create the scene geometry
+-        if( SUCCEEDED( InitGeometry() ) )
+-        {
+-            // Show the window
+-            ShowWindow( hWnd, SW_SHOWDEFAULT );
+-            UpdateWindow( hWnd );
+-
+-            // Enter the message loop
+-            MSG msg;
+-            ZeroMemory( &msg, sizeof(msg) );
+-            while( msg.message!=WM_QUIT )
+-            {
+-                if( PeekMessage( &msg, NULL, 0U, 0U, PM_REMOVE ) )
+-                {
+-                    TranslateMessage( &msg );
+-                    DispatchMessage( &msg );
+-                }
+-                else
+-				{
+-					gGame.Step();
+-                    Render();
+-				}
+-            }
+-        }
+-    }
+-
+-    UnregisterClass( "Dandy", wc.hInstance );
+-    return 0;
+-}
+\ No newline at end of file
++#include "dd_game.h"
